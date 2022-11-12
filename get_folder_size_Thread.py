@@ -19,27 +19,25 @@ def get_file_totalSize(root_path_url,root_info_data):
     total_size = 0
     root_level = root_path_url.count('\\')
     sub_dir_datas = root_info_data[2]
+    dir_map = {}
     for dirpath, dirnames, filenames in walk(root_path_url):
         size = sum([path.getsize(path.join(dirpath, f))
                           for f in filenames])
         cur_level = dirpath.count('\\') - root_level
         total_size += size
         if dirpath != root_path_url:
-            sub_dir_datas.append([dirpath,size,cur_level])
-            # info = [dirpath,size,cur_level]
-            # #加锁
-            # R.acquire()
-            # if None != dirdict[dirpath]:
-            #     dirdict[dirpath][2].append(info)
-            # else:
-            #     dirdict[dirpath] = info
-            # #解锁
-            # R.release()
-    #加锁
-    # R.acquire()
+            dirs = [ path.join(dirpath,f) for f in dirnames ]
+            info = [dirpath,size,cur_level,dirs]
+            sub_dir_datas.append( info )
+            dir_map[dirpath] = info
+
+    #父类文件夹的大小 收到子文件夹大小的影响
+    for i in range(len(sub_dir_datas)-1,-1,-1):
+        data = sub_dir_datas[i]
+        if len( data[3] ) > 0:
+            data[1] += sum([ dir_map[d][1] for d in data[3]])
+
     root_info_data[1] = total_size
-    #解锁
-    # R.release()
 for f in dirs:
     dir = path.join(home_path,f)
     if path.isdir(dir):
@@ -53,7 +51,6 @@ for t in threads:
     t.join()
 
 print(f"目录大小已统计完成 正在对齐结果排序...")
-sortedList = []
 if len(details) > 0:
     details.sort(key=lambda x: x[1],reverse=True)
 
